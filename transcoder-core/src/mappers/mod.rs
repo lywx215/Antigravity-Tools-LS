@@ -48,7 +48,8 @@ pub trait ProtocolMapper: Send + Sync + 'static {
     ) -> Result<Vec<MapperChunk>>;
 
     /// 返回初始帧（可选）
-    fn initial_chunks() -> Vec<MapperChunk> {
+    fn initial_chunks(model_name: &str) -> Vec<MapperChunk> {
+        let _ = model_name;
         vec![]
     }
 

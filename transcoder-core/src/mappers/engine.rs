@@ -118,7 +118,7 @@ async fn run_transcode_loop_with_client<M: ProtocolMapper>(
     let mut tool_call_index = 0u32;
 
     // 发送初始帧
-    for chunk in M::initial_chunks() {
+    for chunk in M::initial_chunks(&model_name) {
         let _ = tx.send(chunk).await;
     }
 

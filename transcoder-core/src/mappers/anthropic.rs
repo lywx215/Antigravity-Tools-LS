@@ -86,11 +86,11 @@ impl ProtocolMapper for AnthropicMapper {
         Ok(prompt)
     }
 
-    fn initial_chunks() -> Vec<MapperChunk> {
+    fn initial_chunks(model_name: &str) -> Vec<MapperChunk> {
         vec![
             MapperChunk {
                 event: Some("message_start".into()),
-                data: r#"{"type":"message_start","message":{"id":"msg_cascade","type":"message","role":"assistant","model":"claude-sonnet-4-6","content":[],"usage":{"input_tokens":0,"output_tokens":0}}}"#.into(),
+                data: format!(r#"{{"type":"message_start","message":{{"id":"msg_cascade","type":"message","role":"assistant","model":"{}","content":[],"usage":{{"input_tokens":0,"output_tokens":0}}}}}}"#, model_name),
             },
             MapperChunk {
                 event: Some("content_block_start".into()),
