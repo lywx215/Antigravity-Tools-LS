@@ -29,3 +29,10 @@ Thumbs.db
 .LSOverride
 Icon
 .Trashes
+
+# Local / Private
+/sec/
+/test/
+/zeabeucli/
+/zeaburcli-sab/
+bench_*.py

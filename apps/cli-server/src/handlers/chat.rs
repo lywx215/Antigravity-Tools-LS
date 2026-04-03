@@ -391,7 +391,7 @@ pub async fn anthropic_messages(
 
     let response_json = serde_json::json!({
         "id": format!("msg_{}", uuid::Uuid::new_v4().to_string().replace("-", "")),
-        "type": "message", "role": "assistant", "model": "claude-3-5-sonnet-20241022",
+        "type": "message", "role": "assistant", "model": model_name_str,
         "content": content, "stop_reason": stop_reason, "stop_sequence": null,
         "usage": { "input_tokens": 0, "output_tokens": 0 }
     });
