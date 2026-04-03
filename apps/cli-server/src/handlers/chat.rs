@@ -369,7 +369,7 @@ pub async fn anthropic_messages(
         url: "/v1/messages".into(),
         status: if meta.error.is_none() { 200 } else { 500 },
         duration,
-        model: Some(model_name_str),
+        model: Some(model_name_str.clone()),
         mapped_model: Some(mapped_model),
         account_email: Some(email),
         client_ip: Some("127.0.0.1".to_string()),
