@@ -117,8 +117,18 @@ async fn run_transcode_loop_with_client<M: ProtocolMapper>(
     let mut in_tool_call = false;
     let mut tool_call_index = 0u32;
 
-    // 发送初始帧
-    for chunk in M::initial_chunks(&model_name) {
+    // 🚀 估算输入 token 数量 (字符数 / 4)
+    let est_input_tokens = (prompt.len() / 4).max(1) as u32;
+
+    // 发送初始帧，注入估算的 input_tokens
+    for mut chunk in M::initial_chunks(&model_name) {
+        // 尝试将 usage.input_tokens 替换为估算值（适用于 Anthropic message_start）
+        if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&chunk.data) {
+            if let Some(usage) = val.pointer_mut("/message/usage") {
+                usage["input_tokens"] = serde_json::json!(est_input_tokens);
+            }
+            chunk.data = val.to_string();
+        }
         let _ = tx.send(chunk).await;
     }
 
@@ -181,9 +191,31 @@ async fn run_transcode_loop_with_client<M: ProtocolMapper>(
          let _ = send_error_to_user::<M>(&tx, &model_name, &err_msg, &mut tool_call_buffer, &mut in_tool_call, &mut tool_call_index).await;
     }
 
-    // 发送结束帧
+    // 🚀 估算输出 token 数量 (字符数 / 4)
+    let est_output_tokens = (full_response_content.len() / 4).max(1) as u32;
+
+    // 发送结束帧，注入估算的 output_tokens
     let final_chunks = M::map_delta(&model_name, String::new(), true, &mut tool_call_buffer, &mut in_tool_call, &mut tool_call_index).await?;
-    for chunk in final_chunks { let _ = tx.send(chunk).await; }
+    for mut chunk in final_chunks {
+        // 尝试将 usage.output_tokens 替换为估算值
+        // 适用于 Anthropic message_delta 和 OpenAI final chunk
+        if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&chunk.data) {
+            // Anthropic: {"type":"message_delta",...,"usage":{"output_tokens":0}}
+            // OpenAI:    {"choices":[...],"usage":{"completion_tokens":0,...}}
+            if let Some(usage) = val.pointer_mut("/usage") {
+                if usage.get("output_tokens").is_some() {
+                    usage["output_tokens"] = serde_json::json!(est_output_tokens);
+                }
+                if usage.get("completion_tokens").is_some() {
+                    usage["completion_tokens"] = serde_json::json!(est_output_tokens);
+                    usage["prompt_tokens"] = serde_json::json!(est_input_tokens);
+                    usage["total_tokens"] = serde_json::json!(est_input_tokens + est_output_tokens);
+                }
+            }
+            chunk.data = val.to_string();
+        }
+        let _ = tx.send(chunk).await;
+    }
 
     // 统计逻辑...
     let input_tokens = (prompt.len() / 4).max(1) as u32;
