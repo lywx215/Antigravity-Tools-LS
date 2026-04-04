@@ -1,10 +1,10 @@
 # --- Frontend Build Stage ---
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app
-COPY apps/web-dashboard/package.json apps/web-dashboard/package-lock.json ./
-RUN npm ci
-COPY apps/web-dashboard/ ./
-RUN npm run build
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY apps/web-dashboard ./apps/web-dashboard
+RUN cd apps/web-dashboard && pnpm build
 
 # --- Backend Build Stage ---
 FROM rust:1-slim-bookworm AS backend-builder
@@ -14,18 +14,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-# 复制工作空间配置并动态清理无关成员
 COPY Cargo.toml ./
-RUN sed -i '/"apps\/desktop\/src-tauri"/d' Cargo.toml
-
-# 复制核心后端源码
+RUN sed -i '/\"apps\/desktop\/src-tauri\"/d' Cargo.toml
 COPY apps/cli-server ./apps/cli-server
 COPY transcoder-core ./transcoder-core
 COPY ls-orchestrator ./ls-orchestrator
 COPY ls-accounts ./ls-accounts
-
-# 编译后端二进制 (由 buildx 自动决定目标架构)
 RUN cargo build --release --bin cli-server --no-default-features
 
 # --- Final Runtime Stage ---
@@ -37,17 +31,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-# 复制二进制和前端静态资源
 COPY --from=backend-builder /app/target/release/cli-server ./antigravity-server
-COPY --from=frontend-builder /app/dist ./dist
+COPY --from=frontend-builder /app/apps/web-dashboard/dist ./dist
 
-# 运行时配置
 ENV ABV_DIST_PATH=/app/dist
 ENV PORT=5173
 ENV RUST_LOG=info
 
 EXPOSE 5173
-
-# 运行指令
 ENTRYPOINT ["/app/antigravity-server"]
