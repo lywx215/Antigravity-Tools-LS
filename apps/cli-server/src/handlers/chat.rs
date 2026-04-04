@@ -393,7 +393,12 @@ pub async fn anthropic_messages(
         "id": format!("msg_{}", uuid::Uuid::new_v4().to_string().replace("-", "")),
         "type": "message", "role": "assistant", "model": model_name_str,
         "content": content, "stop_reason": stop_reason, "stop_sequence": null,
-        "usage": { "input_tokens": 0, "output_tokens": 0 }
+        "usage": {
+            "input_tokens": meta.input_tokens,
+            "output_tokens": meta.output_tokens,
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 0
+        }
     });
     Json(response_json).into_response()
 }

@@ -67,7 +67,10 @@ impl ProtocolMapper for OpenAiMapper {
         let mut results = vec![];
         
         if is_final {
-            results.push(MapperChunk { event: None, data: generate_chunk(model, "", true)? });
+            let finish_reason = if *tool_call_index > 0 { "tool_calls" } else { "stop" };
+            results.push(MapperChunk { event: None, data: generate_final_chunk(model, finish_reason)? });
+            // OpenAI SSE 规范要求流结束时发送 [DONE] 标记，new-api 依赖此标记判断流结束
+            results.push(MapperChunk { event: None, data: "[DONE]".to_string() });
             return Ok(results);
         }
 
@@ -82,11 +85,11 @@ impl ProtocolMapper for OpenAiMapper {
                     *in_tool_call = true;
                     let prefix = &pending_text[..start_pos];
                     if !prefix.is_empty() {
-                        results.push(MapperChunk { event: None, data: generate_chunk(model, prefix, false)? });
+                        results.push(MapperChunk { event: None, data: generate_chunk(model, prefix)? });
                     }
                     pending_text = pending_text[start_pos + "<tool_call>".len()..].to_string();
                 } else {
-                    results.push(MapperChunk { event: None, data: generate_chunk(model, &pending_text, false)? });
+                    results.push(MapperChunk { event: None, data: generate_chunk(model, &pending_text)? });
                     pending_text = String::new();
                 }
             } else {
@@ -102,7 +105,7 @@ impl ProtocolMapper for OpenAiMapper {
                             *tool_call_index += 1;
                         } else {
                             let fallback = format!("<tool_call>{}</tool_call>", trim_buf);
-                            results.push(MapperChunk { event: None, data: generate_chunk(model, &fallback, false)? });
+                            results.push(MapperChunk { event: None, data: generate_chunk(model, &fallback)? });
                         }
                     }
                     tool_call_buffer.clear();
@@ -119,7 +122,7 @@ impl ProtocolMapper for OpenAiMapper {
     }
 }
 
-fn generate_chunk(model: &str, content: &str, is_final: bool) -> Result<String> {
+fn generate_chunk(model: &str, content: &str) -> Result<String> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let chunk = json!({
         "id": format!("chatcmpl-cascade-{}", uuid::Uuid::new_v4()),
@@ -128,9 +131,31 @@ fn generate_chunk(model: &str, content: &str, is_final: bool) -> Result<String> 
         "model": model,
         "choices": [{
             "index": 0,
-            "delta": if is_final { json!({}) } else { json!({ "content": content }) },
-            "finish_reason": if is_final { json!("stop") } else { serde_json::Value::Null }
+            "delta": { "content": content },
+            "finish_reason": serde_json::Value::Null
         }]
+    });
+    Ok(chunk.to_string())
+}
+
+/// 生成 OpenAI 流式最终帧，包含 usage 字段以兼容 new-api 计费
+fn generate_final_chunk(model: &str, finish_reason: &str) -> Result<String> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    let chunk = json!({
+        "id": format!("chatcmpl-cascade-{}", uuid::Uuid::new_v4()),
+        "object": "chat.completion.chunk",
+        "created": now,
+        "model": model,
+        "choices": [{
+            "index": 0,
+            "delta": {},
+            "finish_reason": finish_reason
+        }],
+        "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+        }
     });
     Ok(chunk.to_string())
 }

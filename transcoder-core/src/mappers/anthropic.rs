@@ -90,7 +90,7 @@ impl ProtocolMapper for AnthropicMapper {
         vec![
             MapperChunk {
                 event: Some("message_start".into()),
-                data: format!(r#"{{"type":"message_start","message":{{"id":"msg_cascade","type":"message","role":"assistant","model":"{}","content":[],"usage":{{"input_tokens":0,"output_tokens":0}}}}}}"#, model_name),
+                data: format!(r#"{{"type":"message_start","message":{{"id":"msg_cascade","type":"message","role":"assistant","model":"{}","content":[],"usage":{{"input_tokens":0,"output_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}}}}"#, model_name),
             },
             MapperChunk {
                 event: Some("content_block_start".into()),
@@ -113,7 +113,7 @@ impl ProtocolMapper for AnthropicMapper {
             results.push(MapperChunk { event: Some("content_block_stop".into()), data: format!(r#"{{"type":"content_block_stop","index":{}}}"#, *tool_call_index * 2) });
             
             let stop_reason = if *tool_call_index > 0 { "tool_use" } else { "end_turn" };
-            let message_delta = format!(r#"{{"type":"message_delta","delta":{{"stop_reason":"{}","stop_sequence":null}},"usage":{{"output_tokens":0}}}}"#, stop_reason);
+            let message_delta = format!(r#"{{"type":"message_delta","delta":{{"stop_reason":"{}","stop_sequence":null}},"usage":{{"output_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}}"#, stop_reason);
             results.push(MapperChunk { event: Some("message_delta".into()), data: message_delta });
             results.push(MapperChunk { event: Some("message_stop".into()), data: r#"{"type":"message_stop"}"#.into() });
             return Ok(results);

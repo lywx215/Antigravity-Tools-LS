@@ -32,7 +32,12 @@ where
         let is_virtual_key = app_state.key_manager.is_valid(&header_token).await;
         
         // 如果它既不是我们派发的虚拟 Key，也没有直连的格式特征，安全起见在此拦截
-        if !is_virtual_key && !header_token.starts_with("1//") && !header_token.starts_with("ya29.") {
+        // 注意：放行 "sk-" 前缀的密钥以兼容 new-api / one-api 等第三方网关转发场景
+        if !is_virtual_key
+            && !header_token.starts_with("1//")
+            && !header_token.starts_with("ya29.")
+            && !header_token.starts_with("sk-")
+        {
             return Err((StatusCode::UNAUTHORIZED, "Invalid authentication key format.").into_response());
         }
 

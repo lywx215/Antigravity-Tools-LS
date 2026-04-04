@@ -33,6 +33,8 @@ Icon
 # Local / Private
 /sec/
 /test/
+/docs/
+/.agent/
 /zeabeucli/
 /zeaburcli-sab/
 bench_*.py
