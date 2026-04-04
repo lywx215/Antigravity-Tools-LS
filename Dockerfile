@@ -1,10 +1,10 @@
 # --- Frontend Build Stage ---
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-COPY apps/web-dashboard ./apps/web-dashboard
-RUN cd apps/web-dashboard && pnpm build
+COPY apps/web-dashboard/package.json apps/web-dashboard/package-lock.json ./
+RUN npm install
+COPY apps/web-dashboard ./
+RUN npm run build
 
 # --- Backend Build Stage ---
 FROM rust:1-slim-bookworm AS backend-builder
@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY --from=backend-builder /app/target/release/cli-server ./antigravity-server
-COPY --from=frontend-builder /app/apps/web-dashboard/dist ./dist
+COPY --from=frontend-builder /app/dist ./dist
 
 ENV ABV_DIST_PATH=/app/dist
 ENV PORT=5173
