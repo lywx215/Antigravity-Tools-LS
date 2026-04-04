@@ -1,8 +1,10 @@
-# --- Frontend Stage (Pre-built on Host) ---
-FROM alpine:latest AS frontend-builder
+# --- Frontend Build Stage ---
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app
-# 复制宿主机已编译好的静态资源（架构无关）
-COPY apps/web-dashboard/dist ./dist/
+COPY apps/web-dashboard/package.json apps/web-dashboard/package-lock.json ./
+RUN npm ci
+COPY apps/web-dashboard/ ./
+RUN npm run build
 
 # --- Backend Build Stage ---
 FROM rust:1-slim-bookworm AS backend-builder
